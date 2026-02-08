@@ -1,0 +1,81 @@
+import { createResponseHeaders, CORS_HEADERS } from './headers.js'
+import { rewriteHtml } from './rewrite-html.js'
+import { rewriteCss } from './rewrite-css.js'
+
+export default {
+  async fetch(request) {
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 200, headers: CORS_HEADERS })
+    }
+
+    const url = new URL(request.url)
+
+    if (url.pathname === '/robots.txt') {
+      return new Response('User-agent: *\nAllow: /', {
+        headers: { 'content-type': 'text/plain' },
+      })
+    }
+
+    const targetUrl = url.searchParams.get('url')
+
+    if (!targetUrl) {
+      return new Response(
+        'Web proxy. Pass a URL-encoded target as ?url=\n\n' +
+        'Example: https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com',
+        { status: 200, headers: { 'content-type': 'text/plain' } },
+      )
+    }
+
+    let target
+    try {
+      target = new URL(targetUrl)
+    } catch {
+      return new Response('Invalid URL', { status: 400 })
+    }
+
+    if (target.hostname === url.hostname) {
+      return new Response('Cannot proxy self', { status: 400 })
+    }
+
+    try {
+      const proxyHeaders = new Headers(request.headers)
+      proxyHeaders.delete('host')
+      proxyHeaders.set('user-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0')
+
+      const response = await fetch(targetUrl, {
+        method: request.method,
+        headers: proxyHeaders,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+      })
+
+      const contentType = response.headers.get('content-type') || ''
+
+      if (contentType.includes('text/html')) {
+        const rewrittenResponse = rewriteHtml(response, target, url.origin)
+        return new Response(rewrittenResponse.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: createResponseHeaders(response.headers),
+        })
+      }
+
+      if (contentType.includes('text/css')) {
+        const css = await response.text()
+        const rewrittenCss = rewriteCss(css, target, url.origin, null)
+        return new Response(rewrittenCss, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: createResponseHeaders(response.headers),
+        })
+      }
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: createResponseHeaders(response.headers),
+      })
+    } catch (error) {
+      return new Response(`Proxy error: ${error.message}`, { status: 500 })
+    }
+  },
+}

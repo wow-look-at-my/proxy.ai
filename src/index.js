@@ -16,7 +16,25 @@ export default {
       })
     }
 
-    const targetUrl = url.searchParams.get('url')
+    let targetUrl = url.searchParams.get('url')
+
+    // Support path-based URLs:
+    //   /https://example.com/path  — full URL in path
+    //   /https:/example.com/path   — double slash collapsed by HTTP normalization
+    //   /example.com/path          — bare hostname, scheme inferred as https
+    if (!targetUrl) {
+      const fullMatch = url.pathname.match(/^\/(https?:\/\/.+)/)
+      const collapsedMatch = url.pathname.match(/^\/(https?:\/.+)/)
+      if (fullMatch) {
+        targetUrl = fullMatch[1] + url.search
+      } else if (collapsedMatch) {
+        // Restore the double slash that was collapsed
+        targetUrl = collapsedMatch[1].replace(/^(https?:\/)/, '$1/') + url.search
+      } else if (/^\/[a-zA-Z0-9-]+\.[a-zA-Z]/.test(url.pathname)) {
+        // Bare hostname path like /proxy.golang.org/... — infer https://
+        targetUrl = 'https:/' + url.pathname + url.search
+      }
+    }
 
     if (!targetUrl) {
       return new Response(
@@ -46,6 +64,7 @@ export default {
         method: request.method,
         headers: proxyHeaders,
         body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+        redirect: 'follow',
       })
 
       const contentType = response.headers.get('content-type') || ''

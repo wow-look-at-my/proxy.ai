@@ -2,6 +2,19 @@ import { createResponseHeaders, CORS_HEADERS } from './headers.js'
 import { rewriteHtml } from './rewrite-html.js'
 import { rewriteCss } from './rewrite-css.js'
 
+async function resolveHostname(hostname) {
+  const resp = await fetch(
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
+    { headers: { 'Accept': 'application/dns-json' } },
+  )
+  const data = await resp.json()
+  if (data.Answer) {
+    const aRecord = data.Answer.find(r => r.type === 1)
+    if (aRecord) return aRecord.data
+  }
+  return null
+}
+
 export default {
   async fetch(request) {
     if (request.method === 'OPTIONS') {
@@ -64,8 +77,46 @@ export default {
         method: request.method,
         headers: proxyHeaders,
         body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
-        redirect: 'follow',
+        redirect: 'manual',
       })
+
+      // Handle redirects: resolve DNS and redirect client to IP with TLS host hint.
+      // Client uses X-Proxy-Host for SNI and cert validation, avoiding DNS lookup.
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location')
+        if (location) {
+          try {
+            const redirectUrl = new URL(location)
+            const ip = await resolveHostname(redirectUrl.hostname)
+            if (ip) {
+              const originalHost = redirectUrl.hostname
+              redirectUrl.hostname = ip
+              const headers = createResponseHeaders(response.headers)
+              headers.set('location', redirectUrl.toString())
+              headers.set('x-proxy-host', originalHost)
+              return new Response(null, {
+                status: response.status,
+                statusText: response.statusText,
+                headers,
+              })
+            }
+          } catch {
+            // DNS resolution failed, fall through to stream content
+          }
+
+          // Fallback: follow redirect and stream content through proxy
+          const finalResponse = await fetch(location, {
+            method: request.method,
+            headers: proxyHeaders,
+            redirect: 'follow',
+          })
+          return new Response(finalResponse.body, {
+            status: finalResponse.status,
+            statusText: finalResponse.statusText,
+            headers: createResponseHeaders(finalResponse.headers),
+          })
+        }
+      }
 
       const contentType = response.headers.get('content-type') || ''
 

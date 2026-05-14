@@ -5,7 +5,7 @@ const SKIP_HEADERS = new Set([
   'strict-transport-security',
 ])
 
-export function createResponseHeaders(originalHeaders) {
+export function createResponseHeaders(originalHeaders: Headers): Headers {
   const headers = new Headers()
 
   for (const [key, value] of originalHeaders) {
@@ -21,7 +21,7 @@ export function createResponseHeaders(originalHeaders) {
   return headers
 }
 
-export const CORS_HEADERS = {
+export const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, HEAD, OPTIONS',
   'access-control-allow-headers': '*, Authorization',

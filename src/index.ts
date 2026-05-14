@@ -16,7 +16,19 @@ export default {
       })
     }
 
-    const targetUrl = url.searchParams.get('url')
+    let targetUrl = url.searchParams.get('url')
+
+    if (!targetUrl) {
+      const fullMatch = url.pathname.match(/^\/(https?:\/\/.+)/)
+      const collapsedMatch = url.pathname.match(/^\/(https?:\/.+)/)
+      if (fullMatch) {
+        targetUrl = fullMatch[1] + url.search
+      } else if (collapsedMatch) {
+        targetUrl = collapsedMatch[1].replace(/^(https?:\/)/, '$1/') + url.search
+      } else if (/^\/[a-zA-Z0-9-]+\.[a-zA-Z]/.test(url.pathname)) {
+        targetUrl = 'https:/' + url.pathname + url.search
+      }
+    }
 
     if (!targetUrl) {
       return new Response(
@@ -46,6 +58,7 @@ export default {
         method: request.method,
         headers: proxyHeaders,
         body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+        redirect: 'follow',
       })
 
       const contentType = response.headers.get('content-type') || ''

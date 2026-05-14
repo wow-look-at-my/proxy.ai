@@ -3,6 +3,7 @@ const SKIP_HEADERS = new Set([
   'content-security-policy',
   'x-frame-options',
   'strict-transport-security',
+  'location',
 ])
 
 export function createResponseHeaders(originalHeaders: Headers): Headers {

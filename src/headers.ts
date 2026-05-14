@@ -16,6 +16,7 @@ export function createResponseHeaders(originalHeaders: Headers): Headers {
 
   headers.set('access-control-allow-origin', '*')
   headers.set('access-control-allow-methods', '*')
+  // Authorization is explicitly excluded from the CORS wildcard by spec
   headers.set('access-control-allow-headers', '*, Authorization')
   headers.set('access-control-expose-headers', '*')
   headers.set('access-control-max-age', '86400')
@@ -26,7 +27,7 @@ export function createResponseHeaders(originalHeaders: Headers): Headers {
 export const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': '*',
-  'access-control-allow-headers': '*',
+  'access-control-allow-headers': '*, Authorization',
   'access-control-expose-headers': '*',
   'access-control-max-age': '86400',
 }

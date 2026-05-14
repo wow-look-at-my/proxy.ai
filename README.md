@@ -1,4 +1,4 @@
-# proxy
+# web proxy
 
 Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route back through the proxy.
 

@@ -2,12 +2,12 @@ import { createResponseHeaders, CORS_HEADERS } from './headers'
 import { rewriteHtml } from './rewrite-html'
 import { rewriteCss } from './rewrite-css'
 
-async function resolveHostname(hostname) {
+async function resolveHostname(hostname: string): Promise<string | null> {
   const resp = await fetch(
     `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
     { headers: { 'Accept': 'application/dns-json' } },
   )
-  const data = await resp.json()
+  const data: { Answer?: { type: number; data: string }[] } = await resp.json()
   if (data.Answer) {
     const aRecord = data.Answer.find(r => r.type === 1)
     if (aRecord) return aRecord.data

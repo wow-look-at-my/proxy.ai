@@ -1,6 +1,6 @@
-import { createResponseHeaders, CORS_HEADERS } from './headers.js'
-import { rewriteHtml } from './rewrite-html.js'
-import { rewriteCss } from './rewrite-css.js'
+import { createResponseHeaders, CORS_HEADERS } from './headers'
+import { rewriteHtml } from './rewrite-html'
+import { rewriteCss } from './rewrite-css'
 
 async function resolveHostname(hostname) {
   const resp = await fetch(
@@ -16,7 +16,7 @@ async function resolveHostname(hostname) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request: Request): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 200, headers: CORS_HEADERS })
     }
@@ -57,7 +57,7 @@ export default {
       )
     }
 
-    let target
+    let target: URL
     try {
       target = new URL(targetUrl)
     } catch {
@@ -145,7 +145,7 @@ export default {
         headers: createResponseHeaders(response.headers),
       })
     } catch (error) {
-      return new Response(`Proxy error: ${error.message}`, { status: 500 })
+      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500 })
     }
   },
 }

@@ -1,8 +1,8 @@
-import { rewriteUrl } from './rewrite-url.js'
-import { rewriteCss } from './rewrite-css.js'
+import { rewriteUrl } from './rewrite-url'
+import { rewriteCss } from './rewrite-css'
 
-export function rewriteHtml(response, targetUrl, proxyOrigin) {
-  let baseHref = null
+export function rewriteHtml(response: Response, targetUrl: URL, proxyOrigin: string): Response {
+  let baseHref: string | null = null
 
   return new HTMLRewriter()
     .on('base[href]', {
@@ -62,7 +62,7 @@ export function rewriteHtml(response, targetUrl, proxyOrigin) {
         if (content && content.includes('url=')) {
           const newContent = content.replace(
             /url=([^;]+)/i,
-            (match, url) => `url=${rewriteUrl(url.trim(), targetUrl, proxyOrigin, baseHref)}`
+            (_match, url: string) => `url=${rewriteUrl(url.trim(), targetUrl, proxyOrigin, baseHref)}`
           )
           element.setAttribute('content', newContent)
         }

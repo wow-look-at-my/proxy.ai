@@ -1,4 +1,4 @@
-export function rewriteUrl(url, targetUrl, proxyOrigin, baseHref = null) {
+export function rewriteUrl(url: string, targetUrl: URL, proxyOrigin: string, baseHref: string | null = null): string {
   if (!url || url.startsWith('data:') || url.startsWith('javascript:') || url.startsWith('mailto:') || url.startsWith('#')) {
     return url
   }
@@ -12,7 +12,6 @@ export function rewriteUrl(url, targetUrl, proxyOrigin, baseHref = null) {
     } else if (url.startsWith('http')) {
       absoluteUrl = url
     } else {
-      // Relative URL - resolve against base href if available, otherwise current page
       let basePath
       if (baseHref) {
         if (baseHref.startsWith('/')) {
@@ -36,7 +35,6 @@ export function rewriteUrl(url, targetUrl, proxyOrigin, baseHref = null) {
       absoluteUrl = `${targetUrl.protocol}//${targetUrl.host}${basePath}${url}`
     }
 
-    // For JavaScript files, return the absolute URL to original host instead of proxying
     if (absoluteUrl.match(/\.js(\?.*)?$/i)) {
       return absoluteUrl
     }

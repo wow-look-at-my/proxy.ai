@@ -6,7 +6,7 @@ const SKIP_HEADERS = new Set([
   'location',
 ])
 
-export function createResponseHeaders(originalHeaders) {
+export function createResponseHeaders(originalHeaders: Headers): Headers {
   const headers = new Headers()
 
   for (const [key, value] of originalHeaders) {
@@ -16,14 +16,19 @@ export function createResponseHeaders(originalHeaders) {
   }
 
   headers.set('access-control-allow-origin', '*')
-  headers.set('access-control-allow-methods', 'GET, HEAD, OPTIONS')
+  headers.set('access-control-allow-methods', '*')
+  // Authorization is explicitly excluded from the CORS wildcard by spec
   headers.set('access-control-allow-headers', '*, Authorization')
+  headers.set('access-control-expose-headers', '*')
+  headers.set('access-control-max-age', '86400')
 
   return headers
 }
 
-export const CORS_HEADERS = {
+export const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, HEAD, OPTIONS',
+  'access-control-allow-methods': '*',
   'access-control-allow-headers': '*, Authorization',
+  'access-control-expose-headers': '*',
+  'access-control-max-age': '86400',
 }

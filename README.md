@@ -31,10 +31,11 @@ npm run deploy
 
 ```
 src/
-  index.js          - Entry point, request routing
-  headers.js        - Response header filtering and CORS
-  rewrite-url.js    - Resolves and rewrites URLs to proxy format
-  rewrite-html.js   - HTML rewriting via Cloudflare HTMLRewriter
-  rewrite-css.js    - CSS url() and @import rewriting
+  index.ts          - Entry point, request routing
+  headers.ts        - Response header filtering and CORS
+  rewrite-url.ts    - Resolves and rewrites URLs to proxy format
+  rewrite-html.ts   - HTML rewriting via Cloudflare HTMLRewriter
+  rewrite-css.ts    - CSS url() and @import rewriting
 wrangler.toml       - Cloudflare Worker config
+tsconfig.json       - TypeScript configuration
 ```

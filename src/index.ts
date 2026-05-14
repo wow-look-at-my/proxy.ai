@@ -1,13 +1,13 @@
-import { createResponseHeaders, CORS_HEADERS } from './headers.js'
-import { rewriteHtml } from './rewrite-html.js'
-import { rewriteCss } from './rewrite-css.js'
+import { createResponseHeaders, CORS_HEADERS } from './headers'
+import { rewriteHtml } from './rewrite-html'
+import { rewriteCss } from './rewrite-css'
 
-async function resolveHostname(hostname) {
+async function resolveHostname(hostname: string): Promise<string | null> {
   const resp = await fetch(
     `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
     { headers: { 'Accept': 'application/dns-json' } },
   )
-  const data = await resp.json()
+  const data: { Answer?: { type: number; data: string }[] } = await resp.json()
   if (data.Answer) {
     const aRecord = data.Answer.find(r => r.type === 1)
     if (aRecord) return aRecord.data
@@ -16,7 +16,7 @@ async function resolveHostname(hostname) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request: Request): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 200, headers: CORS_HEADERS })
     }
@@ -31,20 +31,14 @@ export default {
 
     let targetUrl = url.searchParams.get('url')
 
-    // Support path-based URLs:
-    //   /https://example.com/path  — full URL in path
-    //   /https:/example.com/path   — double slash collapsed by HTTP normalization
-    //   /example.com/path          — bare hostname, scheme inferred as https
     if (!targetUrl) {
       const fullMatch = url.pathname.match(/^\/(https?:\/\/.+)/)
       const collapsedMatch = url.pathname.match(/^\/(https?:\/.+)/)
       if (fullMatch) {
         targetUrl = fullMatch[1] + url.search
       } else if (collapsedMatch) {
-        // Restore the double slash that was collapsed
         targetUrl = collapsedMatch[1].replace(/^(https?:\/)/, '$1/') + url.search
       } else if (/^\/[a-zA-Z0-9-]+\.[a-zA-Z]/.test(url.pathname)) {
-        // Bare hostname path like /proxy.golang.org/... — infer https://
         targetUrl = 'https:/' + url.pathname + url.search
       }
     }
@@ -57,7 +51,7 @@ export default {
       )
     }
 
-    let target
+    let target: URL
     try {
       target = new URL(targetUrl)
     } catch {
@@ -80,8 +74,6 @@ export default {
         redirect: 'manual',
       })
 
-      // Handle redirects: resolve DNS and redirect client to IP with TLS host hint.
-      // Client uses X-Proxy-Host for SNI and cert validation, avoiding DNS lookup.
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get('location')
         if (location) {
@@ -104,7 +96,6 @@ export default {
             // DNS resolution failed, fall through to stream content
           }
 
-          // Fallback: follow redirect and stream content through proxy
           const finalResponse = await fetch(location, {
             method: request.method,
             headers: proxyHeaders,
@@ -145,7 +136,7 @@ export default {
         headers: createResponseHeaders(response.headers),
       })
     } catch (error) {
-      return new Response(`Proxy error: ${error.message}`, { status: 500 })
+      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500 })
     }
   },
 }

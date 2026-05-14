@@ -16,7 +16,7 @@ export function createResponseHeaders(originalHeaders) {
 
   headers.set('access-control-allow-origin', '*')
   headers.set('access-control-allow-methods', 'GET, HEAD, OPTIONS')
-  headers.set('access-control-allow-headers', '*')
+  headers.set('access-control-allow-headers', '*, Authorization')
 
   return headers
 }
@@ -24,5 +24,5 @@ export function createResponseHeaders(originalHeaders) {
 export const CORS_HEADERS = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, HEAD, OPTIONS',
-  'access-control-allow-headers': '*',
+  'access-control-allow-headers': '*, Authorization',
 }

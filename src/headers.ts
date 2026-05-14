@@ -16,7 +16,7 @@ export function createResponseHeaders(originalHeaders: Headers): Headers {
 
   headers.set('access-control-allow-origin', '*')
   headers.set('access-control-allow-methods', '*')
-  headers.set('access-control-allow-headers', '*')
+  headers.set('access-control-allow-headers', '*, Authorization')
   headers.set('access-control-expose-headers', '*')
   headers.set('access-control-max-age', '86400')
 

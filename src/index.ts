@@ -2,6 +2,29 @@ import { createResponseHeaders, CORS_HEADERS } from './headers'
 import { rewriteHtml } from './rewrite-html'
 import { rewriteCss } from './rewrite-css'
 
+const LLMS_TXT = `# proxy.pazer.ai
+
+> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy.
+
+## Usage
+
+Pass a URL-encoded target URL as the \`?url=\` query parameter:
+
+    https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
+
+These path forms also work:
+
+    https://proxy.pazer.ai/https://example.com
+    https://proxy.pazer.ai/example.com
+
+HTML and CSS responses are rewritten so their links keep routing through the proxy. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
+
+## What this is not
+
+- Not a forward/HTTP proxy: it cannot be used as a browser/OS proxy setting, an \`HTTP_PROXY\` value, or a \`curl -x\` target. It does not implement HTTP CONNECT tunneling.
+- Not a SOCKS5 or Shadowsocks proxy: it does not implement any tunneling protocol.
+`
+
 async function resolveHostname(hostname: string): Promise<string | null> {
   const resp = await fetch(
     `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
@@ -26,6 +49,12 @@ export default {
     if (url.pathname === '/robots.txt') {
       return new Response('User-agent: *\nAllow: /', {
         headers: { 'content-type': 'text/plain' },
+      })
+    }
+
+    if (url.pathname === '/llms.txt') {
+      return new Response(LLMS_TXT, {
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
       })
     }
 

@@ -12,11 +12,6 @@ Pass a URL-encoded target URL as the \`?url=\` query parameter:
 
     https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 
-These path forms also work:
-
-    https://proxy.pazer.ai/https://example.com
-    https://proxy.pazer.ai/example.com
-
 HTML and CSS responses are rewritten so their links keep routing through the proxy. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
 
 ## What this is not
@@ -58,19 +53,7 @@ export default {
       })
     }
 
-    let targetUrl = url.searchParams.get('url')
-
-    if (!targetUrl) {
-      const fullMatch = url.pathname.match(/^\/(https?:\/\/.+)/)
-      const collapsedMatch = url.pathname.match(/^\/(https?:\/.+)/)
-      if (fullMatch) {
-        targetUrl = fullMatch[1] + url.search
-      } else if (collapsedMatch) {
-        targetUrl = collapsedMatch[1].replace(/^(https?:\/)/, '$1/') + url.search
-      } else if (/^\/[a-zA-Z0-9-]+\.[a-zA-Z]/.test(url.pathname)) {
-        targetUrl = 'https:/' + url.pathname + url.search
-      }
-    }
+    const targetUrl = url.searchParams.get('url')
 
     if (!targetUrl) {
       return new Response(

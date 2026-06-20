@@ -4,15 +4,16 @@ import { rewriteCss } from './rewrite-css'
 
 const LLMS_TXT = `# proxy.pazer.ai
 
-> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy.
+> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy. Every response is decorated with permissive CORS headers so cross-origin browser JavaScript can read the result.
 
 ## Usage
 
-Pass a URL-encoded target URL as the \`?url=\` query parameter:
+Pass the target URL either directly in the path or as a \`?url=\` query parameter:
 
+    https://proxy.pazer.ai/https://example.com
     https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 
-HTML and CSS responses are rewritten so their links keep routing through the proxy. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
+Both forms work for any HTTP method. HTML and CSS responses are rewritten so their links keep routing through the proxy. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
 
 ## What this is not
 
@@ -43,23 +44,32 @@ export default {
 
     if (url.pathname === '/robots.txt') {
       return new Response('User-agent: *\nAllow: /', {
-        headers: { 'content-type': 'text/plain' },
+        headers: { 'content-type': 'text/plain', ...CORS_HEADERS },
       })
     }
 
     if (url.pathname === '/llms.txt') {
       return new Response(LLMS_TXT, {
-        headers: { 'content-type': 'text/plain; charset=utf-8' },
+        headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS_HEADERS },
       })
     }
 
-    const targetUrl = url.searchParams.get('url')
+    // The target URL may be supplied either in the path (e.g.
+    // https://proxy.pazer.ai/https://github.com/login/oauth/access_token) or as a
+    // ?url= query parameter (the form the HTML rewriter emits for proxied links).
+    // ?url= wins so rewritten links keep working; otherwise fall back to the path.
+    let targetUrl = url.searchParams.get('url')
+    if (!targetUrl && url.pathname.length > 1) {
+      targetUrl = url.pathname.slice(1) + url.search
+    }
 
     if (!targetUrl) {
       return new Response(
-        'Web proxy. Pass a URL-encoded target as ?url=\n\n' +
-        'Example: https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com',
-        { status: 200, headers: { 'content-type': 'text/plain' } },
+        'Web proxy. Pass a target URL in the path or as ?url=\n\n' +
+        'Examples:\n' +
+        '  https://proxy.pazer.ai/https://example.com\n' +
+        '  https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com',
+        { status: 200, headers: { 'content-type': 'text/plain', ...CORS_HEADERS } },
       )
     }
 
@@ -67,11 +77,14 @@ export default {
     try {
       target = new URL(targetUrl)
     } catch {
-      return new Response('Invalid URL', { status: 400 })
+      return new Response('Invalid URL', { status: 400, headers: { ...CORS_HEADERS } })
     }
+    // Normalize so the downstream fetch always receives a well-formed absolute
+    // URL — path-based extraction can yield a collapsed scheme like "https:/host".
+    targetUrl = target.toString()
 
     if (target.hostname === url.hostname) {
-      return new Response('Cannot proxy self', { status: 400 })
+      return new Response('Cannot proxy self', { status: 400, headers: { ...CORS_HEADERS } })
     }
 
     try {
@@ -148,7 +161,7 @@ export default {
         headers: createResponseHeaders(response.headers),
       })
     } catch (error) {
-      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500 })
+      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500, headers: { ...CORS_HEADERS } })
     }
   },
 }

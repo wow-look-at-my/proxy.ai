@@ -4,16 +4,13 @@ Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route b
 
 ## Usage
 
-Pass the target URL either directly in the path, or as a URL-encoded `?url=` query parameter:
+Pass a URL-encoded target URL as the `?url=` query parameter:
 
 ```
-https://proxy.pazer.ai/https://example.com
 https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 ```
 
-Both forms work for any HTTP method (GET, POST, etc.). The proxy fetches the target and, for HTML/CSS responses, rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy. The `?url=` form is what the rewriter emits, so rewritten pages keep working; the path form is convenient for direct API calls (e.g. a CORS-less token endpoint).
-
-Every proxied response carries `Access-Control-Allow-Origin: *`, so it can be read from cross-origin browser code.
+The proxy fetches the page and rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy. Every proxied response carries `Access-Control-Allow-Origin: *`, so it can be read from cross-origin browser code.
 
 JavaScript files are **not** proxied -- they're linked directly to the origin to avoid breaking scripts.
 

@@ -4,7 +4,7 @@ import { rewriteCss } from './rewrite-css'
 
 const LLMS_TXT = `# proxy.pazer.ai
 
-> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy.
+> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy. Every response is decorated with permissive CORS headers so cross-origin browser JavaScript can read the result.
 
 ## Usage
 
@@ -43,13 +43,13 @@ export default {
 
     if (url.pathname === '/robots.txt') {
       return new Response('User-agent: *\nAllow: /', {
-        headers: { 'content-type': 'text/plain' },
+        headers: { 'content-type': 'text/plain', ...CORS_HEADERS },
       })
     }
 
     if (url.pathname === '/llms.txt') {
       return new Response(LLMS_TXT, {
-        headers: { 'content-type': 'text/plain; charset=utf-8' },
+        headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS_HEADERS },
       })
     }
 
@@ -59,7 +59,7 @@ export default {
       return new Response(
         'Web proxy. Pass a URL-encoded target as ?url=\n\n' +
         'Example: https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com',
-        { status: 200, headers: { 'content-type': 'text/plain' } },
+        { status: 200, headers: { 'content-type': 'text/plain', ...CORS_HEADERS } },
       )
     }
 
@@ -67,11 +67,11 @@ export default {
     try {
       target = new URL(targetUrl)
     } catch {
-      return new Response('Invalid URL', { status: 400 })
+      return new Response('Invalid URL', { status: 400, headers: { ...CORS_HEADERS } })
     }
 
     if (target.hostname === url.hostname) {
-      return new Response('Cannot proxy self', { status: 400 })
+      return new Response('Cannot proxy self', { status: 400, headers: { ...CORS_HEADERS } })
     }
 
     try {
@@ -148,7 +148,7 @@ export default {
         headers: createResponseHeaders(response.headers),
       })
     } catch (error) {
-      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500 })
+      return new Response(`Proxy error: ${(error as Error).message}`, { status: 500, headers: { ...CORS_HEADERS } })
     }
   },
 }

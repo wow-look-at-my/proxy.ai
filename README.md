@@ -1,6 +1,6 @@
 # web proxy
 
-Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route back through the proxy.
+Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route back through the proxy, and decorates every response with permissive CORS headers so cross-origin browser JavaScript can read the result.
 
 ## Usage
 
@@ -10,7 +10,7 @@ Pass a URL-encoded target URL as the `?url=` query parameter:
 https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 ```
 
-The proxy will fetch the page and rewrite all HTML links, CSS `url()` references, and form actions to route through the proxy.
+The proxy fetches the page and rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy. Every proxied response carries `Access-Control-Allow-Origin: *`, so it can be read from cross-origin browser code.
 
 JavaScript files are **not** proxied -- they're linked directly to the origin to avoid breaking scripts.
 

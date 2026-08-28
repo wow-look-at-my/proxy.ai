@@ -25,11 +25,27 @@ For a forward or SOCKS/Shadowsocks proxy you'd need a different setup (e.g. Squi
 
 A machine-readable summary is served at [`/llms.txt`](https://proxy.pazer.ai/llms.txt).
 
+## Streaming
+
+Server-sent events pass through as they arrive, so a proxied LLM chat shows
+tokens as the model writes them. Two things make that work, and both are easy to
+undo by accident:
+
+- The proxy asks the origin for `accept-encoding: identity`. A compressor holds
+  small writes back until it has a block to emit.
+- A `text/event-stream` response goes out with `no-transform`, which is
+  Cloudflare's documented switch for not compressing it on the way to the
+  visitor.
+
+`src/headers.test.ts` covers the second one.
+
 ## Development
 
 ```sh
 npm install
 npm run dev
+npm test         # node --test over src/*.test.ts
+npm run typecheck
 ```
 
 ## Deploy

@@ -1,10 +1,14 @@
-import { createResponseHeaders, CORS_HEADERS } from './headers.ts'
+import { createResponseHeaders, corsHeaders } from './headers.ts'
 import { rewriteHtml } from './rewrite-html.ts'
 import { rewriteCss } from './rewrite-css.ts'
 
 const LLMS_TXT = `# proxy.pazer.ai
 
-> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy. Every response is decorated with permissive CORS headers so cross-origin browser JavaScript can read the result.
+> Cloudflare Worker web proxy. Fetches a target web page and rewrites its links, CSS url() references, and form actions so they continue to route back through the proxy. Every response lifts the browser's cross-origin restrictions so page JavaScript can read the result.
+
+## Cross-origin access
+
+Every reply allows any Origin, with credentials, for any method and any header, and exposes every response header by name. The origin's Content-Security-Policy, X-Frame-Options, Cross-Origin-*-Policy, X-Content-Type-Options and Clear-Site-Data headers are dropped, Cross-Origin-Resource-Policy is set to cross-origin, and Timing-Allow-Origin is *. A preflight is answered by the proxy and never reaches the origin.
 
 ## Usage
 
@@ -43,31 +47,28 @@ const BODY_HEADERS = ['content-type', 'content-encoding', 'content-language', 'c
 export default {
   async fetch(request: Request): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 200, headers: CORS_HEADERS })
+      return new Response(null, { status: 204, headers: corsHeaders(request) })
     }
 
     const url = new URL(request.url)
 
     if (url.pathname === '/robots.txt') {
-      return new Response('User-agent: *\nAllow: /', {
-        headers: { 'content-type': 'text/plain', ...CORS_HEADERS },
-      })
+      return textResponse(request, 'User-agent: *\nAllow: /', 200)
     }
 
     if (url.pathname === '/llms.txt') {
-      return new Response(LLMS_TXT, {
-        headers: { 'content-type': 'text/plain; charset=utf-8', ...CORS_HEADERS },
-      })
+      return textResponse(request, LLMS_TXT, 200)
     }
 
     const targetUrl = url.searchParams.get('url')
 
     if (!targetUrl) {
-      return new Response(
+      return textResponse(
+        request,
         'Web proxy. Pass a URL-encoded target as ?url=\n\n' +
         'Example: https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com\n\n' +
         'Optional: &method=POST &body=... &header=Name%3A%20Value (repeatable). See /llms.txt',
-        { status: 200, headers: { 'content-type': 'text/plain', ...CORS_HEADERS } },
+        200,
       )
     }
 
@@ -75,11 +76,11 @@ export default {
     try {
       target = new URL(targetUrl)
     } catch {
-      return textResponse('Invalid URL', 400)
+      return textResponse(request, 'Invalid URL', 400)
     }
 
     if (target.hostname === url.hostname) {
-      return textResponse('Cannot proxy self', 400)
+      return textResponse(request, 'Cannot proxy self', 400)
     }
 
     // A browser address bar cannot set headers or a method. The query string
@@ -92,12 +93,12 @@ export default {
         if (colon < 1) throw new TypeError('expected Name: Value')
         proxyHeaders.set(header.slice(0, colon).trim(), header.slice(colon + 1).trim())
       } catch {
-        return textResponse(`Invalid header in query: ${header}`, 400)
+        return textResponse(request, `Invalid header in query: ${header}`, 400)
       }
     }
     const method = (url.searchParams.get('method') ?? request.method).toUpperCase()
     if (!/^[A-Z]+$/.test(method)) {
-      return textResponse(`Invalid method: ${method}`, 400)
+      return textResponse(request, `Invalid method: ${method}`, 400)
     }
 
     const redirectHosts = new Set(
@@ -134,13 +135,14 @@ export default {
           throw new Error(`Redirect to unsupported scheme: ${next.protocol}`)
         }
         if (next.hostname === url.hostname) {
-          return textResponse('Cannot proxy self', 400)
+          return textResponse(request, 'Cannot proxy self', 400)
         }
         if (
           next.hostname !== current.hostname && proxyHeaders.has('authorization')
           && !redirectHosts.has('*') && !redirectHosts.has(next.hostname)
         ) {
           return textResponse(
+            request,
             `Redirect to ${next.hostname} would carry the Authorization header. ` +
             `Allow it with ${REDIRECT_HOSTS_HEADER}: ${next.hostname}`,
             400,
@@ -163,7 +165,7 @@ export default {
       const init = {
         status: response.status,
         statusText: response.statusText,
-        headers: createResponseHeaders(response.headers),
+        headers: createResponseHeaders(response.headers, request),
       }
       const contentType = response.headers.get('content-type') || ''
 
@@ -177,17 +179,21 @@ export default {
 
       return new Response(response.body, init)
     } catch (error) {
-      return textResponse(`Proxy error: ${(error as Error).message}`, 500)
+      return textResponse(request, `Proxy error: ${(error as Error).message}`, 500)
     }
   },
 }
 
 // The text can echo client input or an origin's header. A fixed type and
 // nosniff keep a browser from reading it as HTML on the proxy's origin.
-function textResponse(text: string, status: number): Response {
+function textResponse(request: Request, text: string, status: number): Response {
   return new Response(text, {
     status,
-    headers: { 'content-type': 'text/plain; charset=utf-8', 'x-content-type-options': 'nosniff', ...CORS_HEADERS },
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'x-content-type-options': 'nosniff',
+      ...corsHeaders(request),
+    },
   })
 }
 

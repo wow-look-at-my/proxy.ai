@@ -108,6 +108,32 @@ test('a redirect chain is followed to the final page', async () => {
 	assert.equal(res.headers.get('access-control-allow-origin'), '*')
 })
 
+test('a preflight is answered by the proxy for any origin, method and header', async () => {
+	const res = await worker.fetch(new Request(`https://proxy.test/?url=${encodeURIComponent(`${origin}/final/page.txt`)}`, {
+		method: 'OPTIONS',
+		headers: {
+			origin: 'https://page.example',
+			'access-control-request-method': 'DELETE',
+			'access-control-request-headers': 'authorization, x-proxy-redirect-hosts',
+		},
+	}))
+	assert.equal(res.status, 204)
+	assert.equal(res.headers.get('access-control-allow-origin'), 'https://page.example')
+	assert.equal(res.headers.get('access-control-allow-credentials'), 'true')
+	assert.equal(res.headers.get('access-control-allow-methods'), 'DELETE')
+	assert.equal(res.headers.get('access-control-allow-headers'), 'authorization, x-proxy-redirect-hosts')
+})
+
+test('a page origin is echoed on the proxied reply and on an error', async () => {
+	const ok = await proxied(`${origin}/final/page.txt`, { headers: { origin: 'https://page.example' } })
+	assert.equal(ok.headers.get('access-control-allow-origin'), 'https://page.example')
+	assert.equal(ok.headers.get('cross-origin-resource-policy'), 'cross-origin')
+	const bad = await proxied(`${origin}/loop`, { headers: { origin: 'https://page.example' } })
+	assert.equal(bad.status, 500)
+	assert.equal(bad.headers.get('access-control-allow-origin'), 'https://page.example')
+	assert.equal(bad.headers.get('access-control-allow-credentials'), 'true')
+})
+
 test('links resolve against the URL the redirects end at', async () => {
 	const res = await proxied(`${origin}/old/style.css`)
 	const css = await res.text()

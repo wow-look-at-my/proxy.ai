@@ -1,16 +1,41 @@
+// Dropped from every reply: framing the proxy undoes, and origin policy that
+// would bind the proxy's origin or restrict the page that reads the reply.
 const SKIP_HEADERS = new Set([
   'content-encoding',
   'content-security-policy',
+  'content-security-policy-report-only',
   'x-frame-options',
   'strict-transport-security',
+  'cross-origin-resource-policy',
+  'cross-origin-opener-policy',
+  'cross-origin-embedder-policy',
+  'x-content-type-options',
+  'clear-site-data',
 ])
 
-export function createResponseHeaders(originalHeaders: Headers): Headers {
+// A browser refuses a wildcard on a request that carries credentials, so the
+// Origin and the preflight's own asks are echoed. Exposed headers are listed
+// by name for the same reason.
+export function corsHeaders(request: Request, exposed?: Headers): Record<string, string> {
+  return {
+    'access-control-allow-origin': request.headers.get('origin') ?? '*',
+    'access-control-allow-credentials': 'true',
+    'access-control-allow-methods': request.headers.get('access-control-request-method') ?? '*',
+    'access-control-allow-headers': request.headers.get('access-control-request-headers') ?? '*, Authorization',
+    'access-control-expose-headers': exposed ? [...exposed.keys()].join(', ') : '*',
+    'access-control-max-age': '86400',
+    'cross-origin-resource-policy': 'cross-origin',
+    'timing-allow-origin': '*',
+    'vary': 'Origin',
+  }
+}
+
+export function createResponseHeaders(originalHeaders: Headers, request: Request): Headers {
   const headers = new Headers()
 
   for (const [key, value] of originalHeaders) {
     if (!SKIP_HEADERS.has(key.toLowerCase())) {
-      headers.set(key, value)
+      headers.append(key, value)
     }
   }
 
@@ -24,20 +49,11 @@ export function createResponseHeaders(originalHeaders: Headers): Headers {
     if (!cc.includes('no-transform')) headers.set('cache-control', `${cc}, no-transform`)
   }
 
-  headers.set('access-control-allow-origin', '*')
-  headers.set('access-control-allow-methods', '*')
-  // Authorization is explicitly excluded from the CORS wildcard by spec
-  headers.set('access-control-allow-headers', '*, Authorization')
-  headers.set('access-control-expose-headers', '*')
-  headers.set('access-control-max-age', '86400')
+  const vary = headers.get('vary')
+  for (const [key, value] of Object.entries(corsHeaders(request, headers))) {
+    headers.set(key, value)
+  }
+  if (vary) headers.set('vary', `${vary}, Origin`)
 
   return headers
-}
-
-export const CORS_HEADERS: Record<string, string> = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': '*',
-  'access-control-allow-headers': '*, Authorization',
-  'access-control-expose-headers': '*',
-  'access-control-max-age': '86400',
 }

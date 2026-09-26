@@ -1,6 +1,6 @@
 # web proxy
 
-Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route back through the proxy, and decorates every response with permissive CORS headers so cross-origin browser JavaScript can read the result.
+Cloudflare Worker web proxy. Fetches and rewrites web pages so all links route back through the proxy, and lifts the browser's cross-origin restrictions on every response so page JavaScript can read the result.
 
 ## Usage
 
@@ -10,7 +10,9 @@ Pass a URL-encoded target URL as the `?url=` query parameter:
 https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 ```
 
-The proxy fetches the page and rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy. Every proxied response carries `Access-Control-Allow-Origin: *`, so it can be read from cross-origin browser code.
+The proxy fetches the page and rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy.
+
+Every reply allows any `Origin`, with credentials, for any method and header, and exposes every response header. The origin's CSP, `X-Frame-Options`, `Cross-Origin-*-Policy`, `nosniff` and `Clear-Site-Data` headers are dropped. Nothing a browser enforces cross-origin applies to data fetched through the proxy.
 
 The proxy follows up to 20 redirects itself and returns the final page, never a 3xx. Relative links resolve against the URL where the redirects end. An `Authorization` header follows a redirect to the same host only. To let it follow a redirect to another host, list the hosts in an `x-proxy-redirect-hosts` request header (comma-separated, or `*`). Otherwise the proxy answers 400 and names the host.
 

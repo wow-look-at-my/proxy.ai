@@ -12,6 +12,8 @@ https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 
 The proxy fetches the page and rewrites all HTML links, CSS `url()` references, and form actions to route through the proxy. Every proxied response carries `Access-Control-Allow-Origin: *`, so it can be read from cross-origin browser code.
 
+The proxy follows redirects itself and returns the final page, never a 3xx. Relative links resolve against the URL where the redirects end.
+
 JavaScript files are **not** proxied -- they're linked directly to the origin to avoid breaking scripts.
 
 ## What this is / isn't
@@ -37,7 +39,7 @@ undo by accident:
   Cloudflare's documented switch for not compressing it on the way to the
   visitor.
 
-`src/headers.test.ts` covers the second one.
+`src/headers.test.ts` covers the second one. `src/redirect.test.ts` runs the worker against a local origin that redirects.
 
 ## Development
 

@@ -1,6 +1,6 @@
-import { createResponseHeaders, CORS_HEADERS } from './headers'
-import { rewriteHtml } from './rewrite-html'
-import { rewriteCss } from './rewrite-css'
+import { createResponseHeaders, CORS_HEADERS } from './headers.ts'
+import { rewriteHtml } from './rewrite-html.ts'
+import { rewriteCss } from './rewrite-css.ts'
 
 const LLMS_TXT = `# proxy.pazer.ai
 
@@ -12,26 +12,13 @@ Pass a URL-encoded target URL as the \`?url=\` query parameter:
 
     https://proxy.pazer.ai/?url=https%3A%2F%2Fexample.com
 
-HTML and CSS responses are rewritten so their links keep routing through the proxy. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
+The proxy follows redirects itself and returns the final page. HTML and CSS responses are rewritten so their links keep routing through the proxy, relative to the URL where the redirects end. JavaScript is linked directly to the origin and is not proxied, to avoid breaking scripts.
 
 ## What this is not
 
 - Not a forward/HTTP proxy: it cannot be used as a browser/OS proxy setting, an \`HTTP_PROXY\` value, or a \`curl -x\` target. It does not implement HTTP CONNECT tunneling.
 - Not a SOCKS5 or Shadowsocks proxy: it does not implement any tunneling protocol.
 `
-
-async function resolveHostname(hostname: string): Promise<string | null> {
-  const resp = await fetch(
-    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`,
-    { headers: { 'Accept': 'application/dns-json' } },
-  )
-  const data: { Answer?: { type: number; data: string }[] } = await resp.json()
-  if (data.Answer) {
-    const aRecord = data.Answer.find(r => r.type === 1)
-    if (aRecord) return aRecord.data
-  }
-  return null
-}
 
 export default {
   async fetch(request: Request): Promise<Response> {
@@ -85,52 +72,22 @@ export default {
       // drops content-encoding anyway.
       proxyHeaders.set('accept-encoding', 'identity')
 
-      const response = await fetch(targetUrl, {
+      // The proxy follows the redirects itself. Relative links in the reply
+      // resolve against the URL where the chain ends, not the URL in ?url=.
+      const response = await fetch(target, {
         method: request.method,
         headers: proxyHeaders,
         body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
-        redirect: 'manual',
-      })
-
-      if (response.status >= 300 && response.status < 400) {
-        const location = response.headers.get('location')
-        if (location) {
-          try {
-            const redirectUrl = new URL(location)
-            const ip = await resolveHostname(redirectUrl.hostname)
-            if (ip) {
-              const originalHost = redirectUrl.hostname
-              redirectUrl.hostname = ip
-              const headers = createResponseHeaders(response.headers)
-              headers.set('location', redirectUrl.toString())
-              headers.set('x-proxy-host', originalHost)
-              return new Response(null, {
-                status: response.status,
-                statusText: response.statusText,
-                headers,
-              })
-            }
-          } catch {
-            // DNS resolution failed, fall through to stream content
-          }
-
-          const finalResponse = await fetch(location, {
-            method: request.method,
-            headers: proxyHeaders,
-            redirect: 'follow',
-          })
-          return new Response(finalResponse.body, {
-            status: finalResponse.status,
-            statusText: finalResponse.statusText,
-            headers: createResponseHeaders(finalResponse.headers),
-          })
-        }
-      }
+        redirect: 'follow',
+        // The Fetch spec requires duplex for a stream body. The Workers types omit it.
+        duplex: 'half',
+      } as RequestInit)
+      const finalUrl = response.url ? new URL(response.url) : target
 
       const contentType = response.headers.get('content-type') || ''
 
       if (contentType.includes('text/html')) {
-        const rewrittenResponse = rewriteHtml(response, target, url.origin)
+        const rewrittenResponse = rewriteHtml(response, finalUrl, url.origin)
         return new Response(rewrittenResponse.body, {
           status: response.status,
           statusText: response.statusText,
@@ -140,7 +97,7 @@ export default {
 
       if (contentType.includes('text/css')) {
         const css = await response.text()
-        const rewrittenCss = rewriteCss(css, target, url.origin, null)
+        const rewrittenCss = rewriteCss(css, finalUrl, url.origin, null)
         return new Response(rewrittenCss, {
           status: response.status,
           statusText: response.statusText,

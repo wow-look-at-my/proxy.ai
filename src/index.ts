@@ -78,6 +78,12 @@ export default {
       const proxyHeaders = new Headers(request.headers)
       proxyHeaders.delete('host')
       proxyHeaders.set('user-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0')
+      // Ask the origin for bytes, not a compressed stream. A compressor holds
+      // small writes back until it has a block worth emitting, which turns a
+      // token-by-token event stream into one lump at the end. The client asked
+      // this proxy for an encoding, not the origin, and createResponseHeaders
+      // drops content-encoding anyway.
+      proxyHeaders.set('accept-encoding', 'identity')
 
       const response = await fetch(targetUrl, {
         method: request.method,

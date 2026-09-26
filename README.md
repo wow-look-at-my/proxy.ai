@@ -27,6 +27,8 @@ From a browser address bar, use query parameters instead: `method=POST`, `body=.
 https://proxy.pazer.ai/?url=https%3A%2F%2Fgithub.com%2FOWNER%2FREPO%2Farchive%2Frefs%2Fheads%2Fmaster.zip&header=Authorization%3A%20token%20TOKEN&header=x-proxy-redirect-hosts%3A%20codeload.github.com
 ```
 
+The proxy follows redirects itself and returns the final page, never a 3xx. Relative links resolve against the URL where the redirects end.
+
 JavaScript files are **not** proxied -- they're linked directly to the origin to avoid breaking scripts.
 
 ## What this is / isn't

@@ -1,4 +1,4 @@
-import { rewriteUrl } from './rewrite-url'
+import { rewriteUrl } from './rewrite-url.ts'
 
 export function rewriteCss(css: string, targetUrl: URL, proxyOrigin: string, baseHref: string | null = null): string {
   let rewritten = css

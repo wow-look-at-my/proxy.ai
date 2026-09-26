@@ -1,5 +1,5 @@
-import { rewriteUrl } from './rewrite-url'
-import { rewriteCss } from './rewrite-css'
+import { rewriteUrl } from './rewrite-url.ts'
+import { rewriteCss } from './rewrite-css.ts'
 
 export function rewriteHtml(response: Response, targetUrl: URL, proxyOrigin: string): Response {
   let baseHref: string | null = null

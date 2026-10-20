@@ -83,8 +83,7 @@ export default {
       return textResponse(request, 'Cannot proxy self', 400)
     }
 
-    // A browser address bar cannot set headers or a method. The query string
-    // can. A query header replaces a request header, the user agent included.
+    // A browser address bar cannot set headers or a method. The query string can.
     const proxyHeaders = new Headers(request.headers)
     proxyHeaders.set('user-agent', 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0')
     for (const header of url.searchParams.getAll('header')) {
@@ -107,20 +106,13 @@ export default {
 
     try {
       for (const name of HOP_HEADERS) proxyHeaders.delete(name)
-      // Ask the origin for bytes, not a compressed stream. A compressor holds
-      // small writes back until it has a block worth emitting, which turns a
-      // token-by-token event stream into one lump at the end. The client asked
-      // this proxy for an encoding, not the origin, and createResponseHeaders
-      // drops content-encoding anyway.
+      // Ask the origin for bytes, not a compressed stream.
       proxyHeaders.set('accept-encoding', 'identity')
 
-      // The body is buffered so a 307 or 308 can send it a second time.
       let hopMethod = method
       let body: BodyInit | undefined = await requestBody(request, url, method)
 
-      // The proxy follows the redirects itself, so each hop gets the same
-      // checks as the first request. Links in the reply resolve against the
-      // URL where the chain ends, not the URL in ?url=.
+      // The proxy follows the redirects itself, so each hop gets the same checks as the first request.
       let current = target
       let response: Response
       for (let hops = 0; ; hops++) {
@@ -149,7 +141,6 @@ export default {
           )
         }
 
-        // A 303 turns the request into a GET. So does a 301 or 302 on a POST.
         const toGet = response.status === 303
           ? hopMethod !== 'GET' && hopMethod !== 'HEAD'
           : (response.status === 301 || response.status === 302) && hopMethod === 'POST'

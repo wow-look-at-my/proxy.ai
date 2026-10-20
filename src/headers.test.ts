@@ -6,7 +6,7 @@ const plain = new Request('https://proxy.test/')
 const fromPage = new Request('https://proxy.test/', { headers: { origin: 'https://page.example' } })
 
 // An event stream must reach the page as it is produced. Cloudflare compresses
-// a compressible response on the way out and a compressor buffers, so without
+// a compressible response on the way out. A compressor buffers, so without
 // no-transform the tokens arrive in one lump at the end.
 test('an event stream is marked no-transform', () => {
   const h = createResponseHeaders(new Headers({ 'content-type': 'text/event-stream; charset=utf-8' }), plain)

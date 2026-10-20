@@ -16,10 +16,7 @@ export function createResponseHeaders(originalHeaders: Headers): Headers {
   }
 
   // Cloudflare compresses a compressible response on its way to the visitor,
-  // and a compressor buffers. An event stream then reaches the page in one
-  // piece at the end, which reads as "streaming does not work". no-transform is
-  // the documented off switch: "Compression is disabled when the no-transform
-  // directive is present" (Cloudflare, Cache Control).
+  // and a compressor buffers.
   if ((originalHeaders.get('content-type') || '').includes('text/event-stream')) {
     const cc = headers.get('cache-control') || 'no-cache'
     if (!cc.includes('no-transform')) headers.set('cache-control', `${cc}, no-transform`)
